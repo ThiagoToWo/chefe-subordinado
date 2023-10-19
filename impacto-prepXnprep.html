@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="pt-br">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Impacto</title>
+	<style>
+		table,
+		td {
+			border: 1px solid black;
+			text-align: center;
+		}
+	</style>
+</head>
+
+<body>
+	<h1>Impacto Preparados x Não Preparados</h1>
+	<p>
+		Quantidade de preparados: <input type="range" value="20" min="0" max="100" step="5"> <span id="p">20</span>
+	</p>
+	<p>
+		Quantidade de despreparados: <input type="range" value="80" min="0" max="100" step="5"> <span id="np">80</span>
+	</p>
+	<p>
+		Proporção de interessados preparados: <input type="range" value="0.8" min="0" max="1" step="0.1"> <span
+			id="ip">0.8</span>
+	</p>
+	<p>
+		Proporção de interessados despreparados: <input type="range" value="0.8" min="0" max="1" step="0.1"> <span
+			id="inp">0.8</span>
+	</p>
+	<p>
+		Proporção de recrutadores criteriosos: <input type="range" value="0.5" min="0" max="1" step="0.1"> <span
+			id="rhc">0.5</span>
+	</p>
+	<p>
+		Proporção de recrutadores sem critérios: <input type="range" value="0.5" min="0" max="1" step="0.1"> <span
+			id="rhs">0.5</span>
+	</p>
+	<p>
+		Proporção de preparados escolhidos pelos criteriosos: <input type="range" value="0.5" min="0" max="1"
+			step="0.1"> <span id="cp">0.5</span>
+	</p>
+	<p>
+		Proporção de despreparados escolhidos pelos criteriosos: <input type="range" value="0.0" min="0" max="1"
+			step="0.1"> <span id="cnp">0</span>
+	</p>
+	<p>
+		Proporção de preparados escolhidos pelos sem critérios: <input type="range" value="0.5" min="0" max="1"
+			step="0.1"> <span id="cp">0.5</span>
+	</p>
+	<p>
+		Proporção de despreparados escolhidos pelos sem critérios: <input type="range" value="0.5" min="0" max="1"
+			step="0.1"> <span id="cnp">0.5</span>
+	</p>
+	<table id="absoluto">
+		<tr>
+			<th></th>
+			<th>Índices de Impacto Absoluto (propabilidade%)</th>
+			<th></th>
+		</tr>
+		<tr>
+			<td></td>
+			<td>Chefes Preparados</td>
+			<td>Chefes Não Preparados</td>
+		</tr>
+		<tr>
+			<td>Subordinados Preparados</td>
+			<td></td>
+			<td></td>
+		</tr>
+		<tr>
+			<td>Subordinados Não Preparados</td>
+			<td></td>
+			<td></td>
+		</tr>
+	</table>
+	<h3 id="total-abs"></h3>
+	<table id="relativo">
+		<tr>
+			<th></th>
+			<th>Índices de Impacto Relativo</th>
+			<th></th>
+		</tr>
+		<tr>
+			<td></td>
+			<td>Chefes Preparados</td>
+			<td>Chefes Não Preparados</td>
+		</tr>
+		<tr>
+			<td>Subordinados Preparados</td>
+			<td></td>
+			<td></td>
+		</tr>
+		<tr>
+			<td>Subordinados Não Preparados</td>
+			<td></td>
+			<td></td>
+		</tr>
+	</table>
+	<h3 id="total-rel"></h3>
+
+	<script>
+		const tabelaAbsoluta = document.querySelector("#absoluto");
+		const saidaAbsoluta = document.querySelector("#total-abs");
+		const tabelaRelativa = document.querySelector("#relativo");
+		const saidaRelativa = document.querySelector("#total-rel");
+		const ranges = document.querySelectorAll("input[type='range']");
+		const spans = document.querySelectorAll("span");
+
+		// dados iniciais
+		let p = 20; // pessoas preparadas
+		let np = 100 - p; // pessoas não preparadas
+
+		let ip = 0.8 // nível de interesse dos preparados em se candidatar
+		let inp = 0.8 // nível de interesse dos não preparados em se candidatar
+
+		let rhc = 0.5 // proporção de recrutadores criteriosos
+		let rhs = 1 - rhc // proporção de recrutadores sem critérios
+
+		let cp = 0.5 // nível dos criteriosos para escolher preparados
+		let cnp = 0 // nível dos criteriosos para escolher não preparados
+
+		let sp = 0.5 // nível dos sem critérios na escolha de preparados
+		let snp = 0.5 // nível dos sem critérios na escolha dos não preparados
+
+		const pesochefep = 2 // peso de contribuição dos chefes preparados
+		const pesochefenp = -2 // peso de contribuição dos chefes não preparados
+		const pesosubp = 1 // peso de contribuição dos subordinados preparados
+		const pesosubnp = -1 // peso de contribuição dos subordinados não preparados
+
+		const d = [p, np, ip, inp, rhc, rhs, cp, cnp, sp, snp, pesochefep, pesochefenp, pesosubp, pesosubnp];
+
+		// valores calculados
+		// total de candidatos
+		let intp; // quantidade de preparados interessados
+		let intnp; // quantidade de não preparados interessados
+
+		// total de escolhas de chefes por tipos de recrutadores
+		let chefep_c;  // chefes preparados escolhidos pelos criteriosos
+		let chefenp_c; // chefes não preparados escolhidos pelos criteriosos
+		let chefep_s; // chefes preparados escolhidos pelos sem critérios
+		let chefenp_s; // chefes não preparados escolhidos pelos sem critérios
+
+		// total de chefes e subordinados
+		let chefep; // quantidade de chefes preparados
+		let chefenp; // quantidade de chefes despreparados
+		let subp; // quantidade de subordinados preparados
+		let subnp; // quantidade de subordinados não preparados
+
+		let totalchefe; // total de chefes (preparados + despreparados)
+		let totalsub; // total de subordinados (preparados + despreparados)
+
+		// probabilidades
+		let probchefep; // probabilidade de encontrar um chefe preparado
+		let probchefenp; // probabilidade de encontrar um chefe despreparado
+		let probsubp; // probabilidade de encontrar um subordinado preparado
+		let probsubnp; // probabilidade de encontrar um subordinado despreparado
+
+		// medidas de impacto	
+		let impchefep; // valor de impacto do chefe preparado
+		let impchefenp; // valor de impacto do chefe despreparado
+		let impsubp; // valor de impacto do subordinado preparado
+		let impsubnp; // valor de impacto do subordinado despreparado
+
+		// impactos dos cruzamentos chefes x subordinados
+		let p_p; // impacto chefe preparado x subordinado preparado
+		let p_np; // impacto chefe preparado x subordinado não preparado
+		let np_p; // impacto chefe não preparado x subordinado preparado
+		let np_np; // impacto chefe não preparado x subordinado não preparado
+
+		// impacto total da primeira experiência
+		let imptotal;
+
+		// impactos relativos dos cruzamentos chefes x subordinados
+		let p_p_r; // impacto relativo chefe preparado x subordinado preparado
+		let p_np_r; // impacto relativo chefe preparado x subordinado não preparado
+		let np_p_r; // impacto relativo chefe não preparado x subordinado preparado
+		let np_np_r; // impacto relativo chefe não preparado x subordinado não preparado
+
+		// impacto total relativo da primeira experiência
+		let imptotal_r;
+
+		processar();
+
+		for (let i = 0; i < ranges.length; i++) {
+			if (i == 0) {
+				ranges[i].oninput = function () {
+					d[0] = ranges[0].value;
+					d[1] = 100 - d[0];
+					ranges[1].value = d[1];
+					spans[0].innerText = d[0];
+					spans[1].innerText = d[1];
+					processar();
+				}
+			} else if (i == 1) {
+				ranges[i].oninput = function () {
+					d[1] = ranges[1].value;
+					d[0] = 100 - d[1];
+					ranges[0].value = d[0];
+					spans[0].innerText = d[0];
+					spans[1].innerText = d[1];
+					processar();
+				}
+			} else if (i == 4) {
+				ranges[i].oninput = function () {
+					d[4] = ranges[4].value;
+					d[5] = 1 - d[4];
+					ranges[5].value = d[5];
+					spans[4].innerText = d[4];
+					spans[5].innerText = d[5];
+					processar();
+				}
+			} else if (i == 5) {
+				ranges[i].oninput = function () {
+					d[5] = ranges[5].value;
+					d[4] = 1 - d[5];
+					ranges[4].value = d[4];
+					spans[4].innerText = d[4];
+					spans[5].innerText = d[5];
+					processar();
+				}
+			} else {
+				ranges[i].oninput = function () {
+					d[i] = ranges[i].value;
+					spans[i].innerText = d[i];
+					processar();
+				}
+			}
+		}
+
+		function processar() {
+			calcular();
+			apresentarResultados();
+		}
+
+		function calcular() {
+			// total de candidatos
+			intp = d[0] * d[2]; // quantidade de preparados interessados
+			intnp = d[1] * d[3]; // quantidade de não preparados interessados
+
+			// total de escolhas de chefes por tipos de recrutadores
+			chefep_c = intp * d[6] * d[4];  // chefes preparados escolhidos pelos criteriosos
+			chefenp_c = intnp * d[7] * d[4]; // chefes não preparados escolhidos pelos criteriosos
+			chefep_s = intp * d[8] * d[5]; // chefes preparados escolhidos pelos sem critérios
+			chefenp_s = intnp * d[9] * d[5]; // chefes não preparados escolhidos pelos sem critérios
+
+			// total de chefes e subordinados
+			chefep = chefep_c + chefep_s; // quantidade de chefes preparados
+			chefenp = chefenp_c + chefenp_s; // quantidade de chefes despreparados
+			subp = d[0] * (1 - d[2]) + intp - chefep_c - chefep_s; // quantidade de subordinados preparados
+			subnp = d[1] * (1 - d[3]) + intnp - chefenp_c - chefenp_s; // quantidade de subordinados não preparados
+
+			totalchefe = chefep + chefenp; // total de chefes (preparados + despreparados)
+			totalsub = subp + subnp; // total de subordinados (preparados + despreparados)
+
+			// probabilidades
+			probchefep = chefep / totalchefe; // probabilidade de encontrar um chefe preparado
+			probchefenp = chefenp / totalchefe; // probabilidade de encontrar um chefe despreparado
+			probsubp = subp / totalsub; // probabilidade de encontrar um subordinado preparado
+			probsubnp = subnp / totalsub; // probabilidade de encontrar um subordinado despreparado
+
+			// medidas de impacto	
+			impchefep = chefep * d[10]; // valor de impacto do chefe preparado
+			impchefenp = chefenp * d[11]; // valor de impacto do chefe despreparado
+			impsubp = subp * d[12]; // valor de impacto do subordinado preparado
+			impsubnp = subnp * d[13]; // valor de impacto do subordinado despreparado
+
+			// impactos dos cruzamentos chefes x subordinados
+			p_p = impchefep + impsubp; // impacto chefe preparado x subordinado preparado
+			p_np = impchefep + impsubnp; // impacto chefe preparado x subordinado não preparado
+			np_p = impchefenp + impsubp; // impacto chefe não preparado x subordinado preparado
+			np_np = impchefenp + impsubnp; // impacto chefe não preparado x subordinado não preparado
+
+			// impacto total da primeira experiência
+			imptotal = p_p + p_np + np_p + np_np;
+
+			// impactos relativos dos cruzamentos chefes x subordinados
+			p_p_r = p_p / p_p; // impacto relativo chefe preparado x subordinado preparado
+			p_np_r = p_np / p_p; // impacto relativo chefe preparado x subordinado não preparado
+			np_p_r = np_p / p_p; // impacto relativo chefe não preparado x subordinado preparado
+			np_np_r = np_np / p_p; // impacto relativo chefe não preparado x subordinado não preparado
+
+			// impacto total relativo da primeira experiência
+			imptotal_r = p_p_r + p_np_r + np_p_r + np_np_r;
+		}
+
+		function apresentarResultados() {
+			// saída de dados
+			tabelaAbsoluta.rows[2].cells[1].innerText = p_p.toFixed(1) + " (" + (100 * probchefep * probsubp).toFixed() + "%)"; // linha 2 = sub. preparado | coluna 1 = chefe preparado
+			tabelaAbsoluta.rows[3].cells[1].innerText = p_np.toFixed(1) + " (" + (100 * probchefep * probsubnp).toFixed() + "%)"; // linha 3 = sub. despreparado | coluna 1 = chefe preparado
+			tabelaAbsoluta.rows[2].cells[2].innerText = np_p.toFixed(1) + " (" + (100 * probchefenp * probsubp).toFixed() + "%)"; // linha 2 = sub. preparado | coluna 2 = chefe despreparado
+			tabelaAbsoluta.rows[3].cells[2].innerText = np_np.toFixed(1) + " (" + (100 * probchefenp * probsubnp).toFixed() + "%)"; // linha 3 = sub. despreparado | coluna 2 = chefe despreparado
+
+			saidaAbsoluta.innerText = "Total de Impacto Absoluto da 1ª Experiência = " + imptotal.toFixed(1);
+
+			tabelaRelativa.rows[2].cells[1].innerText = p_p_r.toFixed(1); // linha 2 = sub. preparado | coluna 1 = chefe preparado
+			tabelaRelativa.rows[3].cells[1].innerText = p_np_r.toFixed(1); // linha 3 = sub. despreparado | coluna 1 = chefe preparado
+			tabelaRelativa.rows[2].cells[2].innerText = np_p_r.toFixed(1); // linha 2 = sub. preparado | coluna 2 = chefe despreparado
+			tabelaRelativa.rows[3].cells[2].innerText = np_np_r.toFixed(1); // linha 3 = sub. despreparado | coluna 2 = chefe despreparado
+
+			saidaRelativa.innerText = "Total de Impacto Relativo da 1ª Experiência = " + imptotal_r.toFixed(1);
+		}
+	</script>
+</body>
+<html>
